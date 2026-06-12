@@ -10,39 +10,76 @@ import heroImg3 from './assets/hero-3.png';
 
 const HERO_IMAGES = [heroImg1, heroImg2, heroImg3];
 
+const getIcon = (id) => {
+  switch (id) {
+    case 'email':
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}>
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+      );
+    case 'personal':
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}>
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      );
+    case 'eoffice':
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}>
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      );
+    case 'website':
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}>
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+      );
+    default:
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      );
+  }
+};
+
 const CATEGORIES = [
   {
     id: 'email',
     name: 'Email Services',
-    icon: '📧',
     desc: 'Manage your official VPA email credentials and access.',
-    subRequests: ['Email Creation', 'Email Updation', 'Email Recreation']
+    subRequests: ['Email Updation', 'Email Recreation']
   },
   {
     id: 'personal',
     name: 'Personal Details',
-    icon: '👤',
     desc: 'Update your employee profile and contact information.',
-    subRequests: ['Name Change', 'Designation Update', 'Contact Details']
+    subRequests: ['Name Change', 'Designation Update', 'Contact Details', 'Aadhaar Change']
   },
   {
     id: 'eoffice',
     name: 'E-Office',
-    icon: '🗂️',
     desc: 'Digital file and correspondence management requests.',
     subRequests: ['File Requests', 'Office Correspondence']
   },
   {
     id: 'website',
     name: 'Website',
-    icon: '🌐',
     desc: "Requests related to VPA's official website content.",
     subRequests: ['Content Update', 'Bug Report', 'Feedback']
   },
   {
     id: 'others',
     name: 'Others',
-    icon: '📋',
     desc: 'Track existing requests or raise new unspecified ones.',
     subRequests: ['My Requests', 'Track Request', 'Other Services']
   }
@@ -79,29 +116,47 @@ function App() {
   const [users, setUsers] = useState([]);
   const [requests, setRequests] = useState([]);
 
+  const fetchRequests = async (employeeId) => {
+    try {
+      const url = employeeId ? `/api/requests?employeeId=${employeeId}` : '/api/requests';
+      const res = await fetch(url);
+      const data = await res.json();
+      if (res.ok) {
+        const mapped = data.map(r => ({
+          ...r,
+          id: r.ticketId,
+          details: r.formData
+        }));
+        setRequests(mapped);
+      }
+    } catch (err) {
+      console.error('Error fetching requests:', err);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/users');
+      const data = await res.json();
+      if (res.ok) {
+        setUsers(data);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
+
   // Load database on mount
   useEffect(() => {
-    const savedUsers = JSON.parse(localStorage.getItem('vpa_users')) || [];
-    const savedRequests = JSON.parse(localStorage.getItem('vpa_requests')) || [];
     const loggedInUser = JSON.parse(localStorage.getItem('vpa_logged_in_user'));
-    
-    setUsers(savedUsers);
-    setRequests(savedRequests);
     if (loggedInUser) {
       setCurrentUser(loggedInUser);
+      fetchRequests(loggedInUser.isAdmin ? null : loggedInUser.employeeId);
+      if (loggedInUser.isAdmin) {
+        fetchUsers();
+      }
     }
   }, []);
-
-  // Sync state helpers
-  const saveUsers = (newUsersList) => {
-    setUsers(newUsersList);
-    localStorage.setItem('vpa_users', JSON.stringify(newUsersList));
-  };
-
-  const saveRequests = (newRequestsList) => {
-    setRequests(newRequestsList);
-    localStorage.setItem('vpa_requests', JSON.stringify(newRequestsList));
-  };
 
   const handleNavigate = (page) => {
     setCurrentPage(page);
@@ -113,6 +168,8 @@ function App() {
     setCurrentUser(null);
     localStorage.removeItem('vpa_logged_in_user');
     setCurrentPage('home');
+    setRequests([]);
+    setUsers([]);
     triggerToast('Logged out successfully.');
   };
 
@@ -122,13 +179,16 @@ function App() {
   };
 
   // Auth Submit Handlers
-  const handleSignUpSubmit = (e) => {
+  const handleSignUpSubmit = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const employeeId = fd.get('employeeId').trim();
     const name = fd.get('name').trim();
     const gmail = fd.get('gmail').trim();
     const password = fd.get('password');
+    const designation = fd.get('designation').trim();
+    const aadhaarNumber = fd.get('aadhaarNumber').trim();
+    const mobile = fd.get('mobile').trim();
 
     const errors = {};
     if (!employeeId) errors.employeeId = 'Employee ID is required';
@@ -139,10 +199,16 @@ function App() {
       errors.gmail = 'Please enter a valid email address';
     }
     if (!password || password.length < 6) errors.password = 'Password must be at least 6 characters';
-
-    // Check duplicate
-    if (users.some(u => u.employeeId.toLowerCase() === employeeId.toLowerCase())) {
-      errors.employeeId = 'Employee ID already registered';
+    if (!designation) errors.designation = 'Designation is required';
+    if (!aadhaarNumber) {
+      errors.aadhaarNumber = 'Aadhaar number is required';
+    } else if (!/^\d{12}$/.test(aadhaarNumber)) {
+      errors.aadhaarNumber = 'Aadhaar number must be exactly 12 digits';
+    }
+    if (!mobile) {
+      errors.mobile = 'Mobile number is required';
+    } else if (!/^\d{10}$/.test(mobile)) {
+      errors.mobile = 'Mobile number must be exactly 10 digits';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -150,18 +216,29 @@ function App() {
       return;
     }
 
-    const newUser = { employeeId, name, gmail, password, isAdmin: false };
-    const updatedUsers = [...users, newUser];
-    saveUsers(updatedUsers);
-
-    // Auto-login
-    setCurrentUser(newUser);
-    localStorage.setItem('vpa_logged_in_user', JSON.stringify(newUser));
-    triggerToast(`Welcome ${name}! Sign up successful.`);
-    handleNavigate('home');
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeId, name, gmail, password, designation, aadhaarNumber, mobile })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthErrors({ employeeId: data.error || 'Signup failed' });
+        return;
+      }
+      setCurrentUser(data);
+      localStorage.setItem('vpa_logged_in_user', JSON.stringify(data));
+      triggerToast(`Welcome ${name}! Sign up successful.`);
+      fetchRequests(data.employeeId);
+      handleNavigate('home');
+    } catch (err) {
+      console.error(err);
+      setAuthErrors({ employeeId: 'Network error during signup' });
+    }
   };
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const userId = fd.get('userId').trim();
@@ -176,30 +253,32 @@ function App() {
       return;
     }
 
-    if (authMode === 'admin') {
-      // Admin Login Check
-      if (userId === 'admin' && password === 'admin123') {
-        const adminUser = { employeeId: 'admin', name: 'System Administrator', gmail: 'admin@vpa.gov.in', isAdmin: true };
-        setCurrentUser(adminUser);
-        localStorage.setItem('vpa_logged_in_user', JSON.stringify(adminUser));
-        triggerToast('Logged in as Administrator');
-        handleNavigate('admin');
-      } else {
-        setAuthErrors({ userId: 'Invalid Administrator credentials' });
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, password })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthErrors({ userId: data.error || 'Login failed' });
+        return;
       }
-    } else {
-      // Employee Login Check
-      const foundUser = users.find(u => u.employeeId.toLowerCase() === userId.toLowerCase() && u.password === password);
-      if (foundUser) {
-        setCurrentUser(foundUser);
-        localStorage.setItem('vpa_logged_in_user', JSON.stringify(foundUser));
-        triggerToast(`Welcome back, ${foundUser.name}!`);
-        handleNavigate('home');
-      } else {
-        setAuthErrors({ userId: 'Invalid Employee ID or Password' });
+      setCurrentUser(data);
+      localStorage.setItem('vpa_logged_in_user', JSON.stringify(data));
+      triggerToast(data.isAdmin ? 'Logged in as Administrator' : `Welcome back, ${data.name}!`);
+      
+      fetchRequests(data.isAdmin ? null : data.employeeId);
+      if (data.isAdmin) {
+        fetchUsers();
       }
+      handleNavigate(data.isAdmin ? 'admin' : 'home');
+    } catch (err) {
+      console.error(err);
+      setAuthErrors({ userId: 'Network error during login' });
     }
   };
+
 
   // Service Click Handler — toggles inline expansion of sub-requests
   // (No login required to BROWSE, only to SUBMIT)
@@ -242,17 +321,10 @@ function App() {
   // Dynamic Form Field Selector
   const getFormFields = (subReq) => {
     switch (subReq) {
-      case 'Email Creation':
-        return [
-          { label: 'Full Name', name: 'fullName', type: 'text', placeholder: 'Enter official name', required: true },
-          { label: 'Designation', name: 'designation', type: 'text', placeholder: 'e.g. Senior Accounts Officer', required: true },
-          { label: 'Department', name: 'department', type: 'text', placeholder: 'e.g. Finance Department', required: true },
-          { label: 'Preferred Email Prefix', name: 'prefix', type: 'text', placeholder: 'e.g. john.doe (will become john.doe@vpa.gov.in)', required: true },
-          { label: 'Justification / Reason for Email', name: 'reason', type: 'textarea', placeholder: 'State the official work requirement', required: true }
-        ];
       case 'Email Updation':
         return [
           { label: 'Current VPA Email ID', name: 'email', type: 'email', placeholder: 'e.g. name@vpa.gov.in', required: true },
+          { label: 'Proposed New Email ID', name: 'newEmail', type: 'email', placeholder: 'e.g. newname@gmail.com', required: true },
           { label: 'Contact Mobile', name: 'mobile', type: 'text', placeholder: '10-digit mobile number', required: true },
           { label: 'Update Description', name: 'details', type: 'textarea', placeholder: 'Describe updates (e.g. password resets, storage upgrades, display name changes)', required: true }
         ];
@@ -281,6 +353,12 @@ function App() {
           { label: 'Emergency Contact Person', name: 'emergencyContact', type: 'text', placeholder: 'Full Name', required: true },
           { label: 'Emergency Contact Number', name: 'emergencyMobile', type: 'text', placeholder: '10-digit mobile', required: true },
           { label: 'Current Residential Address', name: 'address', type: 'textarea', placeholder: 'Complete current residential address', required: true }
+        ];
+      case 'Aadhaar Change':
+        return [
+          { label: 'Current Aadhaar Number', name: 'oldAadhaar', type: 'text', placeholder: '12-digit UIDAI number', required: true },
+          { label: 'Proposed New Aadhaar Number', name: 'newAadhaar', type: 'text', placeholder: '12-digit UIDAI number', required: true },
+          { label: 'Reason for Change', name: 'reason', type: 'textarea', placeholder: 'State the reason for updating the Aadhaar number', required: true }
         ];
       case 'File Requests':
         return [
@@ -312,7 +390,7 @@ function App() {
   };
 
   // Submit Request Handler
-  const handleRequestSubmit = (e) => {
+  const handleRequestSubmit = async (e) => {
     e.preventDefault();
     const fields = getFormFields(selectedSubRequest);
     const errors = {};
@@ -331,34 +409,117 @@ function App() {
       return;
     }
 
-    const ticketId = `VPA-REQ-${Math.floor(10000 + Math.random() * 90000)}`;
-    const newRequest = {
-      id: ticketId,
-      employeeId: currentUser.employeeId,
-      employeeName: currentUser.name,
-      category: selectedCategory.name,
-      subRequest: selectedSubRequest,
-      date: new Date().toLocaleDateString(),
-      status: 'Pending',
-      details: data
-    };
-
-    const updatedRequests = [newRequest, ...requests];
-    saveRequests(updatedRequests);
-    setSubmittedTicket(ticketId);
-    setFormData({});
+    try {
+      const res = await fetch('/api/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeId: currentUser.employeeId,
+          employeeName: currentUser.name,
+          category: selectedCategory.name,
+          subRequest: selectedSubRequest,
+          formData: data,
+          date: new Date().toLocaleDateString()
+        })
+      });
+      const resData = await res.json();
+      if (res.ok) {
+        const mappedReq = {
+          ...resData,
+          id: resData.ticketId,
+          details: resData.formData
+        };
+        setRequests([mappedReq, ...requests]);
+        setSubmittedTicket(resData.ticketId);
+        setFormData({});
+      } else {
+        triggerToast('Failed to submit request');
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('Network error submitting request');
+    }
   };
 
   // Admin approval/rejection handler
-  const handleUpdateRequestStatus = (requestId, status) => {
-    const updated = requests.map(req => {
-      if (req.id === requestId) {
-        return { ...req, status };
+  const handleUpdateRequestStatus = async (requestId, status, resolutionRemarks = '', resolutionData = null) => {
+    try {
+      const res = await fetch(`/api/requests/${requestId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, resolutionRemarks, resolutionData })
+      });
+      if (res.ok) {
+        const updated = requests.map(req => {
+          if (req.id === requestId || req.ticketId === requestId) {
+            return { ...req, status, resolutionRemarks, resolutionData };
+          }
+          return req;
+        });
+        setRequests(updated);
+        triggerToast(`Request ${requestId} status updated to: ${status}`);
+        if (status === 'Resolved') {
+          fetchUsers();
+        }
+      } else {
+        triggerToast('Failed to update request status');
       }
-      return req;
-    });
-    saveRequests(updated);
-    triggerToast(`Request ${requestId} status updated to: ${status}`);
+    } catch (err) {
+      console.error(err);
+      triggerToast('Network error updating status');
+    }
+  };
+
+  const handleDeleteRequest = async (ticketId) => {
+    try {
+      const res = await fetch(`/api/requests/${ticketId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setRequests(requests.filter(r => r.ticketId !== ticketId));
+        triggerToast(`Ticket ${ticketId} deleted successfully.`);
+      } else {
+        triggerToast('Failed to delete request');
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('Network error deleting request');
+    }
+  };
+
+  const handleDeleteEmployee = async (employeeId) => {
+    try {
+      const res = await fetch(`/api/users/${employeeId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setUsers(users.filter(u => u.employeeId !== employeeId));
+        setRequests(requests.filter(r => r.employeeId !== employeeId));
+        triggerToast(`Employee ${employeeId} and all their tickets deleted.`);
+      } else {
+        triggerToast('Failed to delete employee');
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('Network error deleting employee');
+    }
+  };
+
+  const handleClearAllRequests = async () => {
+    try {
+      const res = await fetch('/api/requests/clear-all', {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setRequests([]);
+        triggerToast('All requests database cleared successfully.');
+      } else {
+        triggerToast('Failed to clear requests database');
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('Network error clearing requests');
+    }
   };
 
   return (
@@ -448,9 +609,8 @@ function App() {
               <div className="stat-label">Employees Registered</div>
             </div>
             <div className="stat-item">
-              <div className="stat-num">{CATEGORIES.length * 3 - 3}</div>
-              <div className="stat-label">Request Categories</div>
-            </div>
+              <div className="stat-num">{CATEGORIES.reduce((acc, cat) => acc + cat.subRequests.length, 0)}</div>
+              <div className="stat-label">Request Services</div>            </div>
             <div className="stat-item">
               <div className="stat-num">48hr</div>
               <div className="stat-label">Avg. Resolution Time</div>
@@ -478,75 +638,125 @@ function App() {
             </div>
           </div>
 
-          {/* SERVICES SECTION */}
-          <section className="section" style={{ background: 'var(--grey-100)', textAlign: 'center' }}>
-            <div className="section-title">Request Services</div>
-            <div className="section-sub">Choose a category to view available sub-requests</div>
-            
-            <div className="services-grid">
-              {CATEGORIES.map(category => (
-                <div 
-                  key={category.id} 
-                  className={`service-card ${expandedCategory === category.id ? 'expanded' : ''}`}
-                >
-                  <div className="service-card-top" onClick={() => handleServiceCardClick(category)}>
-                    <div className="service-icon">{category.icon}</div>
-                    <h3>{category.name}</h3>
-                    <p>{category.desc}</p>
-                    <span className="service-expand-arrow">{expandedCategory === category.id ? '▲' : '▼'}</span>
-                  </div>
-
-                  {expandedCategory === category.id && (
-                    <div className="service-sub-actions">
-                      <div className="sub-actions-label">Select a sub-request:</div>
-                      {category.subRequests.map((sub, i) => (
-                        <button
-                          key={i}
-                          className="sub-action-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openSubRequestModal(category, sub);
-                          }}
-                        >
-                          <span className="sub-action-dot"></span>
-                          {sub}
-                          <span className="sub-action-go">→</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+          {currentUser?.isAdmin ? (
+            <section className="section highlight-section" style={{ textAlign: 'center', padding: '5rem 2rem' }}>
+              <div className="section-title">Admin Control Panel</div>
+              <div className="section-sub">Quick access to the system administration dashboard</div>
+              
+              <div style={{
+                maxWidth: '650px',
+                margin: '2rem auto 0',
+                background: 'white',
+                padding: '3rem',
+                borderRadius: '16px',
+                border: '1.5px solid var(--blue-200)',
+                boxShadow: '0 10px 40px rgba(13,58,92,0.06)'
+              }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  background: 'var(--blue-100)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 1.5rem',
+                  color: 'var(--blue-800)'
+                }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="9" y1="3" x2="9" y2="21"/>
+                    <line x1="15" y1="3" x2="15" y2="21"/>
+                    <line x1="3" y1="9" x2="21" y2="9"/>
+                    <line x1="3" y1="15" x2="21" y2="15"/>
+                  </svg>
                 </div>
-              ))}
-            </div>
-          </section>
+                <h3 style={{ fontSize: '1.4rem', color: 'var(--navy)', marginBottom: '0.75rem', fontWeight: 600 }}>Manage VPA Portal Services</h3>
+                <p style={{ fontSize: '13.5px', color: '#6b7280', lineHeight: 1.6, marginBottom: '2rem' }}>
+                  As an administrator, you have access to review and resolve employee requests, search and manage employee records, view active database logs, and export system data.
+                </p>
+                <button 
+                  className="cta-primary" 
+                  onClick={() => handleNavigate('admin')}
+                  style={{ padding: '14px 40px', fontSize: '13.5px', fontWeight: 600, border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+                >
+                  Open System Control Panel
+                </button>
+              </div>
+            </section>
+          ) : (
+            <>
+              {/* SERVICES SECTION */}
+              <section className="section" style={{ background: 'var(--grey-100)', textAlign: 'center' }}>
+                <div className="section-title">Request Services</div>
+                <div className="section-sub">Choose a category to view available sub-requests</div>
+                
+                <div className="services-grid">
+                  {CATEGORIES.map(category => (
+                    <div 
+                      key={category.id} 
+                      className={`service-card ${expandedCategory === category.id ? 'expanded' : ''}`}
+                    >
+                      <div className="service-card-top" onClick={() => handleServiceCardClick(category)}>
+                        <div className="service-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{getIcon(category.id)}</div>
+                        <h3>{category.name}</h3>
+                        <p>{category.desc}</p>
+                        <span className="service-expand-arrow">{expandedCategory === category.id ? '▲' : '▼'}</span>
+                      </div>
 
-          {/* HOW IT WORKS */}
-          <section id="how-it-works-sec" className="section highlight-section" style={{ textAlign: 'center' }}>
-            <div className="section-title">How It Works</div>
-            <div className="section-sub">Four simple steps to get your request resolved</div>
-            <div className="steps-row">
-              <div className="step-item">
-                <div className="step-circle">1</div>
-                <h4>Login</h4>
-                <p>Sign in with your employee credentials</p>
-              </div>
-              <div className="step-item">
-                <div className="step-circle">2</div>
-                <h4>Submit Request</h4>
-                <p>Choose category and fill in the form</p>
-              </div>
-              <div className="step-item">
-                <div className="step-circle">3</div>
-                <h4>Get Ticket</h4>
-                <p>Receive a random ticket number via email</p>
-              </div>
-              <div className="step-item">
-                <div className="step-circle">4</div>
-                <h4>Resolved</h4>
-                <p>Admin reviews and closes your request</p>
-              </div>
-            </div>
-          </section>
+                      {expandedCategory === category.id && (
+                        <div className="service-sub-actions">
+                          <div className="sub-actions-label">Select a sub-request:</div>
+                          {category.subRequests.map((sub, i) => (
+                            <button
+                              key={i}
+                              className="sub-action-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openSubRequestModal(category, sub);
+                              }}
+                            >
+                              <span className="sub-action-dot"></span>
+                              {sub}
+                              <span className="sub-action-go">→</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* HOW IT WORKS */}
+              <section id="how-it-works-sec" className="section highlight-section" style={{ textAlign: 'center' }}>
+                <div className="section-title">How It Works</div>
+                <div className="section-sub">Four simple steps to get your request resolved</div>
+                <div className="steps-row">
+                  <div className="step-item">
+                    <div className="step-circle">1</div>
+                    <h4>Login</h4>
+                    <p>Sign in with your employee credentials</p>
+                  </div>
+                  <div className="step-item">
+                    <div className="step-circle">2</div>
+                    <h4>Submit Request</h4>
+                    <p>Choose category and fill in the form</p>
+                  </div>
+                  <div className="step-item">
+                    <div className="step-circle">3</div>
+                    <h4>Get Ticket</h4>
+                    <p>Receive a random ticket number via email</p>
+                  </div>
+                  <div className="step-item">
+                    <div className="step-circle">4</div>
+                    <h4>Resolved</h4>
+                    <p>Admin reviews and closes your request</p>
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
         </>
       )}
 
@@ -580,20 +790,20 @@ function App() {
                   className={`auth-tab ${authMode === 'employee' ? 'active' : ''}`}
                   onClick={() => { setAuthMode('employee'); setAuthErrors({}); }}
                 >
-                  👤 Employee
+                  Employee
                 </button>
                 <button 
                   type="button" 
                   className={`auth-tab ${authMode === 'admin' ? 'active' : ''}`}
                   onClick={() => { setAuthMode('admin'); setAuthErrors({}); }}
                 >
-                  🔑 Admin
+                  Admin
                 </button>
               </div>
 
               {authMode === 'admin' && (
                 <div className="auth-admin-notice">
-                  <span>🛡️</span> Administrator access — restricted to authorized IT personnel only.
+                  Administrator access — restricted to authorized IT personnel only.
                 </div>
               )}
 
@@ -621,7 +831,7 @@ function App() {
                 </div>
 
                 <button type="submit" className="btn-submit">
-                  {authMode === 'admin' ? '🔑 Sign In as Admin' : 'Sign In to Portal'}
+                  {authMode === 'admin' ? 'Sign In as Admin' : 'Sign In to Portal'}
                 </button>
 
                 {authMode === 'employee' && (
@@ -694,6 +904,43 @@ function App() {
                 </div>
 
                 <div className="form-group">
+                  <label>Designation</label>
+                  <input 
+                    type="text" 
+                    name="designation" 
+                    placeholder="e.g. Junior Engineer"
+                    required 
+                  />
+                  {authErrors.designation && <span className="form-error">{authErrors.designation}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label>Aadhaar Card Number</label>
+                  <input 
+                    type="text" 
+                    name="aadhaarNumber" 
+                    placeholder="12-digit Aadhaar number"
+                    pattern="[0-9]{12}"
+                    title="Aadhaar number must be exactly 12 digits"
+                    required 
+                  />
+                  {authErrors.aadhaarNumber && <span className="form-error">{authErrors.aadhaarNumber}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label>Mobile Number</label>
+                  <input 
+                    type="tel" 
+                    name="mobile" 
+                    placeholder="10-digit mobile number"
+                    pattern="[0-9]{10}"
+                    title="Mobile number must be exactly 10 digits"
+                    required 
+                  />
+                  {authErrors.mobile && <span className="form-error">{authErrors.mobile}</span>}
+                </div>
+
+                <div className="form-group">
                   <label>Create Password</label>
                   <input 
                     type="password" 
@@ -720,8 +967,10 @@ function App() {
         <AdminDashboard
           users={users}
           requests={requests}
-          onUpdateRequests={saveRequests}
-          onUpdateUsers={saveUsers}
+          onUpdateRequestStatus={handleUpdateRequestStatus}
+          onDeleteRequest={handleDeleteRequest}
+          onDeleteEmployee={handleDeleteEmployee}
+          onClearRequests={handleClearAllRequests}
           onNavigateHome={() => handleNavigate('home')}
         />
       )}
@@ -731,8 +980,8 @@ function App() {
         <div className="modal-backdrop" onClick={closeRequestModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>
-                {selectedCategory.icon} {selectedCategory.name}
+              <h2 style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                {getIcon(selectedCategory.id)} {selectedCategory.name}
               </h2>
               <button className="modal-close" onClick={closeRequestModal}>×</button>
             </div>
@@ -762,7 +1011,11 @@ function App() {
                 {submittedTicket ? (
                   /* SUCCESS VIEW */
                   <div className="success-card">
-                    <div className="success-icon-big">✅</div>
+                    <div className="success-icon-big" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#10b981', marginBottom: '1rem' }}>
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                      </svg>
+                    </div>
                     <h3>Request Submitted Successfully!</h3>
                     <p>
                       Your <strong>{selectedSubRequest}</strong> request has been raised under Visakhapatnam Port Authority. A confirmation email has been dispatched to {currentUser.gmail}.
@@ -797,7 +1050,6 @@ function App() {
                       if (list.length === 0) {
                         return (
                           <div style={{ textAlign: 'center', padding: '3rem 0', color: '#888' }}>
-                            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📭</div>
                             No requests found matching this view.
                           </div>
                         );
@@ -814,6 +1066,7 @@ function App() {
                                 <th style={{ padding: '8px 12px' }}>Sub-Type</th>
                                 <th style={{ padding: '8px 12px' }}>Date</th>
                                 <th style={{ padding: '8px 12px' }}>Status</th>
+                                <th style={{ padding: '8px 12px' }}>Resolution Remarks</th>
                                 {currentUser.isAdmin && <th style={{ padding: '8px 12px' }}>Actions</th>}
                               </tr>
                             </thead>
@@ -833,11 +1086,14 @@ function App() {
                                   <td style={{ padding: '10px 12px' }}>
                                     <span style={{
                                       padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
-                                      background: req.status === 'Approved' ? '#dcfce7' : req.status === 'Rejected' ? '#fee2e2' : '#fef9c3',
-                                      color: req.status === 'Approved' ? '#15803d' : req.status === 'Rejected' ? '#b91c1c' : '#a16207'
+                                      background: req.status === 'Resolved' || req.status === 'Approved' ? '#dcfce7' : req.status === 'Rejected' ? '#fee2e2' : '#fef9c3',
+                                      color: req.status === 'Resolved' || req.status === 'Approved' ? '#15803d' : req.status === 'Rejected' ? '#b91c1c' : '#a16207'
                                     }}>
                                       {req.status}
                                     </span>
+                                  </td>
+                                  <td style={{ padding: '10px 12px', color: '#4b5563', fontStyle: req.resolutionRemarks ? 'normal' : 'italic' }}>
+                                    {req.resolutionRemarks || 'Pending Action'}
                                   </td>
                                   {currentUser.isAdmin && (
                                     <td style={{ padding: '10px 12px', display: 'flex', gap: '5px' }}>
@@ -919,7 +1175,11 @@ function App() {
                 ) : (
                   /* WELCOME SUB-REQUEST VIEW */
                   <div className="subrequest-welcome">
-                    <div className="subrequest-welcome-icon">📋</div>
+                    <div className="subrequest-welcome-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', marginBottom: '1rem' }}>
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                      </svg>
+                    </div>
                     <h3>Choose a Sub-Request Option</h3>
                     <p style={{ fontSize: '12.5px', maxWidth: '320px', margin: '0 auto', marginTop: '5px' }}>
                       Select one of the sub-categories in the left sidebar to access specific forms or track request status.
