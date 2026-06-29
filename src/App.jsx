@@ -115,6 +115,33 @@ function App() {
   // Local storage db arrays
   const [users, setUsers] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [emailLogs, setEmailLogs] = useState([]);
+  const [loginLogs, setLoginLogs] = useState([]);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  const fetchLoginLogs = async () => {
+    try {
+      const res = await fetch('/api/login-logs');
+      const data = await res.json();
+      if (res.ok) {
+        setLoginLogs(data);
+      }
+    } catch (err) {
+      console.error('Error fetching login logs:', err);
+    }
+  };
+
+  const fetchEmailLogs = async () => {
+    try {
+      const res = await fetch('/api/email-logs');
+      const data = await res.json();
+      if (res.ok) {
+        setEmailLogs(data);
+      }
+    } catch (err) {
+      console.error('Error fetching email logs:', err);
+    }
+  };
 
   const fetchRequests = async (employeeId) => {
     try {
@@ -154,6 +181,8 @@ function App() {
       fetchRequests(loggedInUser.isAdmin ? null : loggedInUser.employeeId);
       if (loggedInUser.isAdmin) {
         fetchUsers();
+        fetchEmailLogs();
+        fetchLoginLogs();
       }
     }
   }, []);
@@ -173,6 +202,41 @@ function App() {
     triggerToast('Logged out successfully.');
   };
 
+  const handleRefresh = async () => {
+    if (currentUser) {
+      fetchRequests(currentUser.isAdmin ? null : currentUser.employeeId);
+      if (currentUser.isAdmin) {
+        fetchUsers();
+        fetchEmailLogs();
+        fetchLoginLogs();
+      }
+      triggerToast('Data refreshed successfully.');
+    }
+  };
+
+  const handleUpdateUserSettings = async (emailNotificationsEnabled) => {
+    if (!currentUser) return;
+    try {
+      const res = await fetch(`/api/users/${currentUser.employeeId}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailNotificationsEnabled })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCurrentUser(data);
+        localStorage.setItem('vpa_logged_in_user', JSON.stringify(data));
+        triggerToast('Notification preferences updated successfully.');
+        setShowSettingsModal(false);
+      } else {
+        triggerToast(data.error || 'Failed to update preferences.');
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('Network error updating settings.');
+    }
+  };
+
   const triggerToast = (msg) => {
     setShowToast(msg);
     setTimeout(() => setShowToast(''), 3000);
@@ -189,6 +253,7 @@ function App() {
     const designation = fd.get('designation').trim();
     const aadhaarNumber = fd.get('aadhaarNumber').trim();
     const mobile = fd.get('mobile').trim();
+    const emailNotificationsEnabled = fd.get('emailNotificationsEnabled') === 'true';
 
     const errors = {};
     if (!employeeId) errors.employeeId = 'Employee ID is required';
@@ -220,7 +285,7 @@ function App() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeId, name, gmail, password, designation, aadhaarNumber, mobile })
+        body: JSON.stringify({ employeeId, name, gmail, password, designation, aadhaarNumber, mobile, emailNotificationsEnabled })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -271,6 +336,8 @@ function App() {
       fetchRequests(data.isAdmin ? null : data.employeeId);
       if (data.isAdmin) {
         fetchUsers();
+        fetchEmailLogs();
+        fetchLoginLogs();
       }
       handleNavigate(data.isAdmin ? 'admin' : 'home');
     } catch (err) {
@@ -461,6 +528,7 @@ function App() {
         if (status === 'Resolved') {
           fetchUsers();
         }
+        fetchEmailLogs();
       } else {
         triggerToast('Failed to update request status');
       }
@@ -529,6 +597,8 @@ function App() {
         currentUser={currentUser} 
         onLogout={handleLogout}
         onRequestClick={handleNavRequestClick}
+        onOpenSettings={() => setShowSettingsModal(true)}
+        onRefresh={handleRefresh}
       />
 
       {/* TOAST SYSTEM */}
@@ -692,14 +762,18 @@ function App() {
                 <div className="section-sub">Choose a category to view available sub-requests</div>
                 
                 <div className="services-grid">
-                  {CATEGORIES.map(category => (
+                  {CATEGORIES.filter(category => category.id !== 'others').map(category => (
                     <div 
                       key={category.id} 
                       className={`service-card ${expandedCategory === category.id ? 'expanded' : ''}`}
                     >
                       <div className="service-card-top" onClick={() => handleServiceCardClick(category)}>
                         <div className="service-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{getIcon(category.id)}</div>
-                        <h3>{category.name}</h3>
+                        <div style={{ margin: '12px 0' }}>
+                          <span className="btn-outline" style={{ display: 'inline-block', cursor: 'pointer', padding: '6px 16px', fontSize: '15px', fontWeight: '600' }}>
+                            {category.name}
+                          </span>
+                        </div>
                         <p>{category.desc}</p>
                         <span className="service-expand-arrow">{expandedCategory === category.id ? '▲' : '▼'}</span>
                       </div>
@@ -951,6 +1025,20 @@ function App() {
                   {authErrors.password && <span className="form-error">{authErrors.password}</span>}
                 </div>
 
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '15px 0' }}>
+                  <input 
+                    type="checkbox" 
+                    name="emailNotificationsEnabled" 
+                    id="emailNotificationsEnabled"
+                    value="true"
+                    defaultChecked 
+                    style={{ width: 'auto', margin: 0, cursor: 'pointer' }}
+                  />
+                  <label htmlFor="emailNotificationsEnabled" style={{ margin: 0, cursor: 'pointer', fontSize: '12.5px', fontWeight: 500, color: 'var(--navy)' }}>
+                    Enable instant email notifications for ticket status updates
+                  </label>
+                </div>
+
                 <button type="submit" className="btn-submit">Create Portal Account</button>
 
                 <div className="auth-switch">
@@ -967,11 +1055,14 @@ function App() {
         <AdminDashboard
           users={users}
           requests={requests}
+          emailLogs={emailLogs}
+          loginLogs={loginLogs}
           onUpdateRequestStatus={handleUpdateRequestStatus}
           onDeleteRequest={handleDeleteRequest}
           onDeleteEmployee={handleDeleteEmployee}
           onClearRequests={handleClearAllRequests}
           onNavigateHome={() => handleNavigate('home')}
+          currentUser={currentUser}
         />
       )}
 
@@ -1187,6 +1278,88 @@ function App() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROFILE SETTINGS MODAL */}
+      {showSettingsModal && currentUser && (
+        <div className="modal-backdrop" onClick={() => setShowSettingsModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2 style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}>
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Profile & Settings
+              </h2>
+              <button className="modal-close" onClick={() => setShowSettingsModal(false)}>×</button>
+            </div>
+            
+            <div className="modal-main" style={{ padding: '2rem' }}>
+              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                <div style={{
+                  width: '64px', height: '64px', borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--blue-800), var(--blue-600))',
+                  color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '24px', fontWeight: 'bold', margin: '0 auto 10px'
+                }}>
+                  {currentUser.name.charAt(0).toUpperCase()}
+                </div>
+                <h3 style={{ margin: 0, color: 'var(--navy)', fontSize: '18px', fontWeight: 600 }}>{currentUser.name}</h3>
+                <span style={{ fontSize: '12.5px', color: '#6b7280' }}>Employee ID: <code>{currentUser.employeeId}</code></span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '1.5rem', borderBottom: '1.5px solid var(--grey-200)', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#6b7280' }}>Gmail:</span>
+                  <span style={{ fontWeight: 500, color: 'var(--navy)' }}>{currentUser.gmail}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#6b7280' }}>Designation:</span>
+                  <span style={{ fontWeight: 500, color: 'var(--navy)' }}>{currentUser.designation}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#6b7280' }}>Mobile:</span>
+                  <span style={{ fontWeight: 500, color: 'var(--navy)' }}>{currentUser.mobile}</span>
+                </div>
+              </div>
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                handleUpdateUserSettings(fd.get('emailNotifications') === 'true');
+              }}>
+                <div className="form-group" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <input 
+                    type="checkbox" 
+                    name="emailNotifications" 
+                    id="emailNotifications"
+                    value="true"
+                    defaultChecked={currentUser.emailNotificationsEnabled !== false}
+                    style={{ width: 'auto', marginTop: '3px', cursor: 'pointer' }}
+                  />
+                  <div>
+                    <label htmlFor="emailNotifications" style={{ cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--navy)', marginBottom: '2px' }}>
+                      Instant Email Updates
+                    </label>
+                    <p style={{ margin: 0, fontSize: '11.5px', color: '#6b7280', lineHeight: 1.4 }}>
+                      Notify me via email immediately when my service request ticket status is updated by an administrator.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '2rem' }}>
+                  <button type="submit" className="btn-solid" style={{ flex: 1, padding: '10px' }}>
+                    Save Preferences
+                  </button>
+                  <button type="button" className="btn-outline" onClick={() => setShowSettingsModal(false)} style={{ flex: 1, padding: '10px' }}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

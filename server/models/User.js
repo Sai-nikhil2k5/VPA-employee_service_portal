@@ -25,6 +25,11 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  adminLevel: {
+    type: String,
+    enum: ['assistant', 'superior'],
+    default: 'assistant'
+  },
   designation: {
     type: String,
     default: ''
@@ -48,6 +53,10 @@ const UserSchema = new mongoose.Schema({
   emergencyMobile: {
     type: String,
     default: ''
+  },
+  emailNotificationsEnabled: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true

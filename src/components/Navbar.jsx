@@ -51,7 +51,7 @@ const CATEGORIES = [
   { id: 'others', name: 'Others', subRequests: ['My Requests', 'Track Request', 'Other Services'] }
 ];
 
-const Navbar = ({ onNavigate, currentUser, onLogout, onRequestClick }) => {
+const Navbar = ({ onNavigate, currentUser, onLogout, onRequestClick, onOpenSettings, onRefresh }) => {
   const [requestsOpen, setRequestsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -113,48 +113,12 @@ const Navbar = ({ onNavigate, currentUser, onLogout, onRequestClick }) => {
 
         {/* REQUESTS MEGA DROPDOWN */}
         {!currentUser?.isAdmin && (
-          <div className="nav-requests-wrapper" ref={dropdownRef}>
-            <button 
-              className={`nav-link requests-trigger ${requestsOpen ? 'active' : ''}`}
-              onClick={() => setRequestsOpen(!requestsOpen)}
-            >
-              Requests
-              <svg className={`chevron ${requestsOpen ? 'rotated' : ''}`} width="10" height="6" viewBox="0 0 10 6" fill="none">
-                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-
-            {requestsOpen && (
-              <div className="mega-dropdown">
-                <div className="mega-dropdown-header">
-                  <span className="mega-title">Service Request Categories</span>
-                  <span className="mega-subtitle">Select a category and sub-request to get started</span>
-                </div>
-                <div className="mega-grid">
-                  {CATEGORIES.map(cat => (
-                    <div key={cat.id} className="mega-category">
-                      <div className="mega-cat-header">
-                        <span className="mega-cat-icon" style={{ display: 'inline-flex', alignItems: 'center' }}>{getIcon(cat.id)}</span>
-                        <span className="mega-cat-name">{cat.name}</span>
-                      </div>
-                      <div className="mega-cat-items">
-                        {cat.subRequests.map((sub, i) => (
-                          <button
-                            key={i}
-                            className="mega-item"
-                            onClick={() => handleSubClick(cat, sub)}
-                          >
-                            <span className="mega-dot"></span>
-                            {sub}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <button 
+            className="nav-link" 
+            onClick={() => handleSubClick(CATEGORIES.find(c => c.id === 'others'), 'My Requests')}
+          >
+            My Requests
+          </button>
         )}
 
         <button className="nav-link" onClick={() => {
@@ -177,6 +141,41 @@ const Navbar = ({ onNavigate, currentUser, onLogout, onRequestClick }) => {
                 {currentUser.name}{currentUser.isAdmin && <span className="admin-badge">Admin</span>}
               </span>
             </span>
+            <button 
+              onClick={onRefresh}
+              style={{ 
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px',
+                borderRadius: '50%',
+                marginRight: '8px',
+                color: 'var(--navy)'
+              }}
+              title="Refresh Data"
+              onMouseOver={(e) => e.currentTarget.style.background = 'var(--grey-200)'}
+              onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21l-3.25 3.14"/>
+              </svg>
+            </button>
+            {!currentUser.isAdmin && (
+              <button 
+                className="btn-outline" 
+                onClick={onOpenSettings}
+                style={{ marginRight: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}>
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Settings
+              </button>
+            )}
             <button className="btn-outline" onClick={onLogout}>Log Out</button>
           </>
         ) : (

@@ -71,7 +71,7 @@ const TABS = [
   { id: 'database', label: 'Database Explorer' },
 ];
 
-const AdminDashboard = ({ users, requests, onUpdateRequestStatus, onDeleteRequest, onDeleteEmployee, onClearRequests, onNavigateHome }) => {
+const AdminDashboard = ({ users, requests, emailLogs = [], loginLogs = [], onUpdateRequestStatus, onDeleteRequest, onDeleteEmployee, onClearRequests, onNavigateHome, currentUser }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -514,7 +514,7 @@ const AdminDashboard = ({ users, requests, onUpdateRequestStatus, onDeleteReques
                 onChange={e => setSearchTerm(e.target.value)}
               />
               <div className="admin-status-filters">
-                {['all', 'Pending', 'In Progress', 'Resolved', 'Rejected'].map(s => (
+                {['all', 'Pending', 'In Progress', 'Escalated', 'Resolved', 'Rejected'].map(s => (
                   <button
                     key={s}
                     className={`admin-filter-btn ${statusFilter === s ? 'active' : ''}`}
@@ -551,16 +551,9 @@ const AdminDashboard = ({ users, requests, onUpdateRequestStatus, onDeleteReques
                       <td>{r.category}</td>
                       <td>{r.subRequest}</td>
                       <td>
-                        <select
-                          className={`status-select status-${r.status?.toLowerCase().replace(' ', '-')}`}
-                          value={r.status}
-                          onChange={e => updateRequestStatus(r.ticketId, e.target.value)}
-                        >
-                          <option value="Pending">Pending</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Resolved">Resolved</option>
-                          <option value="Rejected">Rejected</option>
-                        </select>
+                        <span className={`status-badge status-${r.status?.toLowerCase().replace(' ', '-')}`}>
+                          {r.status}
+                        </span>
                       </td>
                       <td>{r.date}</td>
                       <td>
@@ -673,15 +666,25 @@ const AdminDashboard = ({ users, requests, onUpdateRequestStatus, onDeleteReques
                         )}
                       </div>
                       <div className="admin-modal-actions">
-                        <button className="admin-btn-success" onClick={() => setIsResolving(true)}>
-                          Resolve
-                        </button>
-                        <button className="admin-btn-warning" onClick={() => { updateRequestStatus(selectedRequest.ticketId, 'In Progress'); handleSelectRequest(null); }}>
-                          In Progress
-                        </button>
-                        <button className="admin-btn-danger" onClick={() => { updateRequestStatus(selectedRequest.ticketId, 'Rejected'); handleSelectRequest(null); }}>
-                          Reject
-                        </button>
+                        {(!selectedRequest.status || !['Resolved', 'Rejected'].includes(selectedRequest.status)) && 
+                         !(currentUser?.adminLevel === 'assistant' && selectedRequest.status === 'Escalated') && (
+                          <>
+                            <button className="admin-btn-success" onClick={() => setIsResolving(true)}>
+                              Resolve
+                            </button>
+                            <button className="admin-btn-warning" onClick={() => { updateRequestStatus(selectedRequest.ticketId, 'In Progress'); handleSelectRequest(null); }}>
+                              In Progress
+                            </button>
+                            {currentUser?.adminLevel === 'assistant' && (
+                              <button className="btn-outline" style={{ borderColor: '#7e22ce', color: '#7e22ce', background: '#f3e8ff' }} onClick={() => { updateRequestStatus(selectedRequest.ticketId, 'Escalated'); handleSelectRequest(null); }}>
+                                Transfer to Superior
+                              </button>
+                            )}
+                            <button className="admin-btn-danger" onClick={() => { updateRequestStatus(selectedRequest.ticketId, 'Rejected'); handleSelectRequest(null); }}>
+                              Reject
+                            </button>
+                          </>
+                        )}
                       </div>
                     </>
                   ) : (
@@ -756,6 +759,7 @@ const AdminDashboard = ({ users, requests, onUpdateRequestStatus, onDeleteReques
                       <th>Aadhaar Number</th>
                       <th>Mobile</th>
                       <th>Role</th>
+                      <th>Account Created</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -769,6 +773,9 @@ const AdminDashboard = ({ users, requests, onUpdateRequestStatus, onDeleteReques
                         <td>{u.aadhaarNumber ? `XXXX-XXXX-${u.aadhaarNumber.slice(-4)}` : <em style={{color: '#9ca3af'}}>Not Set</em>}</td>
                         <td>{u.mobile || <em style={{color: '#9ca3af'}}>Not Set</em>}</td>
                         <td>{u.isAdmin ? <span className="status-badge status-admin">Admin</span> : 'Employee'}</td>
+                        <td style={{ fontSize: '11.5px', color: '#6b7280' }}>
+                          {u.createdAt ? new Date(u.createdAt).toLocaleString() : 'N/A'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -809,6 +816,45 @@ const AdminDashboard = ({ users, requests, onUpdateRequestStatus, onDeleteReques
                 </table>
               </div>
             </div>
+            
+            <div className="admin-db-section" style={{ marginTop: '2.5rem' }}>
+              <h3>System Email Logs <span className="admin-db-count">({emailLogs.length} records)</span></h3>
+              <div className="admin-db-table-wrap">
+                {emailLogs.length === 0 ? (
+                  <p className="admin-empty" style={{ padding: '1.5rem', color: '#6b7280', textAlign: 'center', fontSize: '13px' }}>No email logs recorded yet.</p>
+                ) : (
+                  <table className="admin-table admin-table-db">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Recipient (To)</th>
+                        <th>Subject</th>
+                        <th>Status</th>
+                        <th>Timestamp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {emailLogs.map((log, i) => (
+                        <tr key={i}>
+                          <td>{i + 1}</td>
+                          <td><code>{log.to}</code></td>
+                          <td>{log.subject}</td>
+                          <td>
+                            <span className={`status-badge status-${log.status?.toLowerCase().replace(' ', '-')}`}>
+                              {log.status}
+                            </span>
+                            {log.error && <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '2px' }}>{log.error}</div>}
+                          </td>
+                          <td>{new Date(log.createdAt || log.timestamp).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+
+
 
             <div className="admin-db-actions">
               <button className="admin-btn-export" onClick={() => {
